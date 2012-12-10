@@ -49,10 +49,15 @@ sqlkorma とは
 というように `postgres` という接続用の関数の用例が載っておりますのですぐ使えるでしょう。
 
 実は会社では `Oracle` を使うことが多いのですが、`Oracle` を使う場合にはちょっとした工夫が必要です。
-Oracle 用関数 `oracle` には、オプションとして `:host`、`:port` を渡すことはできても接続先サービス名(データベースインスタンス名のようなもの)を指定することができません。
-##TODO##
+Oracle 用関数 `oracle` には、オプションとして `:host`、`:port` を渡すことはできても接続先サービス名(データベースインスタンス名のようなもの)を指定することができません。ところが、内部的には、`:subname` というオプションを`:host`,`:port`から内部で生成しているらしく、これを上書いてやることで目的を達成することができます。具体的には、
 
-とここまで言っておきながら、以下の文面では `sqlite3` を使うことにします。`sqlite3` だと別途サーバ環境を準備する必要がないのでラクですよね。
+```clojure
+(defdb db (oracle {:subname ":HOSTNAME-or-IP:PORT:SERVICE"}))
+```
+
+こんな感じです。
+
+とここまで postgresql だの Oracle だの言っておきながら、以下の文面では `sqlite3` を使うことにします。`sqlite3` だと別途サーバ環境を準備する必要がないのでラクですよね。
 
 まずは、簡単なサンプルから。サンプル用のスキーマは、以下の様な感じにします。
 
@@ -150,8 +155,6 @@ $ lein deps
 (db/defdb db (db/sqlite3 {:db "sqlkorma-study.db"}))
 ;=> {:pool #<Delay@519f6780: :pending>, :options {:naming {:keys #<core$identity clojure.core$identity@43ff887>, :fields #<core$identity clojure.core$identity@43ff887>}, :delimiters ["\"" "\""]}}
 ```
-`defdb` した直後だと、まだ SQLite データベースは作成されてません。Delay されているからです。@(db :pool) とかやればサイズ0のDBファイルが作成されることになります。
-
 
 テーブルに簡単にアクセスするには、テーブルに対応した entity を作成することです。email および users に対する entity 定義を以下のようにします。
 
@@ -338,6 +341,8 @@ Oracle について言えば、
 
 あと、DDL のサポートがよくわかりませんでした(動きません、なのか、自分のやり方がまずいのか...)。今後調べるつもりではありますが、どうせやるなら、Ruby on Rails の ActiveRecord の migration みたいに、migration 用 DSL みたいなものが作れたら、オレオレツールとしては使いみちも広がってくると思っていますのでいつかは作ってみたいです。
 
-なんだか Lisp アドベントカレンダーなのにほとんど SQL の話のようになってしまいました(しかも Clojure 限定...)。まあそれでも誰かの役に立つことがあれば嬉しいのですが...。
+なんだか Lisp アドベントカレンダーなのにほとんど SQL の話のようになってしまいました(しかも Clojure 限定...さらにいうと内容薄いorz)。まあそれでも誰かの役に立つことがあれば嬉しいのですが...。
 
-明日は  さんの記事になります。
+今回作成したソース一式は、[GitHub](https://github.com/ponkore/sqlkorma-study/) においてあります。
+
+明日は **omasanori** さんの記事になります。
