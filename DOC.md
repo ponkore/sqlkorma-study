@@ -185,19 +185,72 @@ $ lein deps
 あとは、テーブル単体でデータが欲しければ、
 
 ```clojrue
-(k/select users)
-;=>
-(k/select email)
-;=>
+(clojure.pprint/pprint (k/select users))
+=> [{:id 0, :first_name "Taro", :last_name "Hoge", :email_id 0}
+    {:id 1, :first_name "Taro", :last_name "Hoge", :email_id nil}
+    {:id 2, :first_name "じろう", :last_name "Hoge", :email_id nil}]
 ```
 
 とやれば得られますし、user に紐付く email の情報もあわせて取得したい場合(join して取ってきたい場合)は、
 
 ```clojure
-(k/select users (k/with email))
+(clojure.pprint/pprint (k/select users (k/with email)))
+;=> [{:id 0,
+  :first_name "Taro",
+  :last_name "Hoge",
+  :email_id 0,
+  :id_2 0,
+  :address "example@hoge.com",
+  :users_id 0}
+ {:id 0,
+  :first_name "Taro",
+  :last_name "Hoge",
+  :email_id 0,
+  :id_2 1,
+  :address "example2@fuga.com",
+  :users_id 0}
+ {:id 0,
+  :first_name "Taro",
+  :last_name "Hoge",
+  :email_id 0,
+  :id_2 2,
+  :address "example3@piyo.com",
+  :users_id 0}
+ {:id 1,
+  :first_name "Taro",
+  :last_name "Hoge",
+  :email_id nil,
+  :id_2 3,
+  :address "example@hoge.com",
+  :users_id 1}
+ {:id 1,
+  :first_name "Taro",
+  :last_name "Hoge",
+  :email_id nil,
+  :id_2 4,
+  :address "example2@fuga.com",
+  :users_id 1}
+ {:id 1,
+  :first_name "Taro",
+  :last_name "Hoge",
+  :email_id nil,
+  :id_2 5,
+  :address "example2@fuga.com",
+  :users_id 1}
+ {:id 2,
+  :first_name "じろう",
+  :last_name "Hoge",
+  :email_id nil,
+  :id_2 nil,
+  :address nil,
+  :users_id nil}]
 ```
 
-のようにやれば取得できます。
+のようにやれば取得できます。どんな SQL が発行されているかは、`korma.core/sql-only` を使います。
+```clojure
+(k/sql-only (k/select users (k/with email)))
+;=> "SELECT \"users\".*, \"email\".* FROM \"users\" LEFT JOIN \"email\" ON \"users\".\"id\" = \"email\".\"users_id\""
+```
 
 ちょっとだけ応用編
 ---------------
@@ -215,7 +268,6 @@ $ lein deps
 といったところでしょうか。ソースは以下のようになりました。
 
 ```clojure
-```
 ;;; src/korma_study/ken.clj
 (ns sqlkorma-study.ken
   (:require [korma.db :as db]
@@ -302,6 +354,7 @@ Oracle について言えば、
 
 * 接続文字列がちょっとめんどくさい
 * `korma.core/limit`、`korma.core/offset` は Oracle では使えない(Oracle の SQLがサポートしていない)
+* より複雑な SQL (副問い合わせ、from 句問い合わせ... Oracle のややこしいSQLたち) はどうすればよいのか？
 
 といった点がひっかかります。
 

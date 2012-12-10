@@ -18,6 +18,7 @@
 
 (k/insert email (k/values {:id 0 :address "example@hoge.com" :users_id 0}))
 (k/insert email (k/values {:id 1 :address "example2@fuga.com" :users_id 0}))
+(k/insert email (k/values {:id 2 :address "example3@piyo.com" :users_id 0}))
 
 (k/insert email (k/values {:id 3 :address "example@hoge.com" :users_id 1}))
 (k/insert email (k/values {:id 4 :address "example2@fuga.com" :users_id 1}))
