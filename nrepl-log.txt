@@ -1,0 +1,339 @@
+; nREPL 0.1.6-preview
+user> (ns sqlkorma-study.core
+  (:require [korma.db :as db]
+            [korma.core :as k]
+            [clojure.string :as str :only (upper-case lower-case)]))
+nil
+sqlkorma-study.core> (db/defdb db (db/sqlite3 {:db "sqlkorma-study.db"}))
+{:pool #<Delay@76a0f9cb: :pending>, :options {:naming {:keys #<core$identity clojure.core$identity@356fd116>, :fields #<core$identity clojure.core$identity@356fd116>}, :delimiters ["\"" "\""]}}
+sqlkorma-study.core> (def ken-sityouson-csv-url "http://www.stat.go.jp/index/seido/csv/9-5.csv")
+#'sqlkorma-study.core/ken-sityouson-csv-url
+sqlkorma-study.core> (def ken_sityouson_fields [:ken_code
+                           :sityouson_code
+                           :tiiki_code
+                           :ken_name
+                           :sityouson_name1
+                           :sityouson_name2
+                           :sityouson_name3
+                           :yomigana])
+
+#'sqlkorma-study.core/ken_sityouson_fields
+sqlkorma-study.core> (k/defentity ken_sityouson_table
+  (k/pk :tiiki_code)
+  (k/entity-fields :ken_code
+                   :sityouson_code
+                   :tiiki_code
+                   :ken_name
+                   :sityouson_name1
+                   :sityouson_name2
+                   :sityouson_name3
+                   :yomigana))
+
+#'sqlkorma-study.core/ken_sityouson_table
+sqlkorma-study.core> (defn read-ken-sityouson-as-vector
+  "統計局ホームページ-統計に用いる標準地域コードを読み込んでvectorに入れて返す。
+元データは Shift_JIS なので、UTF-8 に変換して読み取る。
+１行めは項目名なので読み飛ばす。"
+  []
+  (with-open [rdr (clojure.java.io/reader ken-sityouson-csv-url :encoding "Shift_JIS")]
+    (->> (slurp rdr)
+         (re-seq #"([^\r\n]+)\r\n")
+         (map second)
+         (drop 1)))) ;; 1行目は項目名なので読み飛ばす
+
+#'sqlkorma-study.core/read-ken-sityouson-as-vector
+sqlkorma-study.core> (defn transform-for-insert
+  "read-ken-sityouson-as-vector で読み取った各要素を、DB に入れる形式(hash-map)に変換する。"
+  [val]
+  (map (fn [k v] {k v}) ken_sityouson_fields val))
+
+#'sqlkorma-study.core/transform-for-insert
+sqlkorma-study.core> (def a
+  (->> "1,100,1100,北海道,札幌市,,,さっぽろし"
+       (re-seq #"([^,]*),?")
+       (map second)
+       (drop-last)))
+
+#'sqlkorma-study.core/a
+sqlkorma-study.core> (k/insert ken_sityouson_table (k/values (transform-for-insert a)))
+
+Failure to execute query with SQL:
+INSERT INTO "ken_sityouson_table" ("ken_code") VALUES (?), (NULL), (NULL), (NULL), (NULL), (NULL), (NULL), (NULL)  ::  [1]
+SQLException:
+ Message: [SQLITE_ERROR] SQL error or missing database (near ",": syntax error)
+ SQLState: null
+ Error Code: 0
+SQLException [SQLITE_ERROR] SQL error or missing database (near ",": syntax error)  org.sqlite.DB.newSQLException (DB.java:383)
+sqlkorma-study.core> (k/sql-only (k/insert ken_sityouson_table (k/values (transform-for-insert a))))
+"INSERT INTO \"ken_sityouson_table\" (\"ken_code\") VALUES (?), (NULL), (NULL), (NULL), (NULL), (NULL), (NULL), (NULL)"
+sqlkorma-study.core> (doc k/entity-fields)
+-------------------------
+korma.core/entity-fields
+([ent & fields])
+  Set the fields to be retrieved by default in select queries for the
+  entity.
+nil
+sqlkorma-study.core> (k/defentity ken_sityouson_table
+  (k/pk :tiiki_code))
+
+#'sqlkorma-study.core/ken_sityouson_table
+sqlkorma-study.core> (k/insert ken_sityouson_table (k/values (transform-for-insert a)))
+Failure to execute query with SQL:
+INSERT INTO "ken_sityouson_table" ("ken_code") VALUES (?), (NULL), (NULL), (NULL), (NULL), (NULL), (NULL), (NULL)  ::  [1]
+SQLException:
+ Message: [SQLITE_ERROR] SQL error or missing database (near ",": syntax error)
+ SQLState: null
+ Error Code: 0
+SQLException [SQLITE_ERROR] SQL error or missing database (near ",": syntax error)  org.sqlite.DB.newSQLException (DB.java:383)
+sqlkorma-study.core> (k/defentity ken_sityouson_table
+  (k/pk :tiiki_code))
+#'sqlkorma-study.core/ken_sityouson_table
+sqlkorma-study.core> (k/select ken_sityouson_table)
+[]
+sqlkorma-study.core> (k/sql-only (k/select ken_sityouson_table))
+"SELECT \"ken_sityouson_table\".* FROM \"ken_sityouson_table\""
+sqlkorma-study.core> (k/defentity ken_sityouson_table
+  (k/pk :tiiki_code)
+  (k/entity-fields :tiiki_code))
+#'sqlkorma-study.core/ken_sityouson_table
+sqlkorma-study.core> (k/sql-only (k/select ken_sityouson_table))
+"SELECT \"ken_sityouson_table\".* FROM \"ken_sityouson_table\""
+sqlkorma-study.core> (k/sql-only (k/select ken_sityouson_table (k/fields :ken_name))
+				 )
+"SELECT \"ken_sityouson_table\".\"ken_name\" FROM \"ken_sityouson_table\""
+sqlkorma-study.core> (k/sql-only (k/insert ken_sityouson_table (k/values :ken_code 0)))
+ArityException Wrong number of args (3) passed to: core$values  clojure.lang.AFn.throwArity (AFn.java:437)
+sqlkorma-study.core> (k/sql-only (k/insert ken_sityouson_table (k/values 0)))
+IllegalArgumentException Don't know how to create ISeq from: java.lang.Long  clojure.lang.RT.seqFrom (RT.java:494)
+sqlkorma-study.core> (k/sql-only (k/insert ken_sityouson_table (k/values [0])))
+IllegalArgumentException Don't know how to create ISeq from: java.lang.Long  clojure.lang.RT.seqFrom (RT.java:494)
+sqlkorma-study.core> (k/select ken_sityouson_table)
+[]
+sqlkorma-study.core> (k/insert ken_sityouson_table)
+Failure to execute query with SQL:
+INSERT INTO "ken_sityouson_table" () VALUES   ::  []
+SQLException:
+ Message: [SQLITE_ERROR] SQL error or missing database (near ")": syntax error)
+ SQLState: null
+ Error Code: 0
+SQLException [SQLITE_ERROR] SQL error or missing database (near ")": syntax error)  org.sqlite.DB.newSQLException (DB.java:383)
+sqlkorma-study.core> (k/insert ken_sityouson_table (values [0]))
+CompilerException java.lang.RuntimeException: Unable to resolve symbol: values in this context, compiling:(NO_SOURCE_PATH:1) 
+sqlkorma-study.core> (k/insert ken_sityouson_table (k/values [0]))
+IllegalArgumentException Don't know how to create ISeq from: java.lang.Long  clojure.lang.RT.seqFrom (RT.java:494)
+sqlkorma-study.core> (k/insert ken_sityouson_table (k/values {:ken_code 0}))
+{:last_insert_rowid() 1}
+sqlkorma-study.core> (k/delete ken_sityouson_table)
+{:last_insert_rowid() 1}
+sqlkorma-study.core> (k/delete ken_sityouson_table)
+{:last_insert_rowid() 1}
+sqlkorma-study.core> a
+("1" "100" "1100" "北海道" "札幌市" "" "" "さっぽろし")
+sqlkorma-study.core> (transform-for-insert a)
+({:ken_code "1"} {:sityouson_code "100"} {:tiiki_code "1100"} {:ken_name "北海道"} {:sityouson_name1 "札幌市"} {:sityouson_name2 ""} {:sityouson_name3 ""} {:yomigana "さっぽろし"})
+sqlkorma-study.core> (k/insert ken_sityouson_table (k/values (transform-for-insert a)))
+;;; output cleared
+sqlkorma-study.core> (doc merge)
+;;; output cleared
+sqlkorma-study.core> (merge (transform-for-insert a))
+({:ken_code "1"} {:sityouson_code "100"} {:tiiki_code "1100"} {:ken_name "北海道"} {:sityouson_name1 "札幌市"} {:sityouson_name2 ""} {:sityouson_name3 ""} {:yomigana "さっぽろし"})
+sqlkorma-study.core> (flaten (transform-for-insert a))
+CompilerException java.lang.RuntimeException: Unable to resolve symbol: flaten in this context, compiling:(NO_SOURCE_PATH:1) 
+sqlkorma-study.core> (flatten (transform-for-insert a))
+;;; output cleared
+sqlkorma-study.core> (merge (transform-for-insert a))
+({:ken_code "1"} {:sityouson_code "100"} {:tiiki_code "1100"} {:ken_name "北海道"} {:sityouson_name1 "札幌市"} {:sityouson_name2 ""} {:sityouson_name3 ""} {:yomigana "さっぽろし"})
+sqlkorma-study.core> (reduce merge (transform-for-insert a))
+{:yomigana "さっぽろし", :sityouson_name3 "", :sityouson_name2 "", :sityouson_name1 "札幌市", :ken_name "北海道", :tiiki_code "1100", :sityouson_code "100", :ken_code "1"}
+sqlkorma-study.core> (defn transform-for-insert
+  "read-ken-sityouson-as-vector で読み取った各要素を、DB に入れる形式(hash-map)に変換する。"
+  [val]
+  (reduce merge (map (fn [k v] {k v}) ken_sityouson_fields val)))
+
+#'sqlkorma-study.core/transform-for-insert
+sqlkorma-study.core> (transform-for-insert a)
+{:yomigana "さっぽろし", :sityouson_name3 "", :sityouson_name2 "", :sityouson_name1 "札幌市", :ken_name "北海道", :tiiki_code "1100", :sityouson_code "100", :ken_code "1"}
+sqlkorma-study.core> (k/insert ken_sityouson_table (k/values (transform-for-insert a)))
+{:last_insert_rowid() 1}
+sqlkorma-study.core> (k/select ken_sityouson_table)
+[{:ken_code 1, :sityouson_code 100, :tiiki_code 1100, :ken_name "北海道", :sityouson_name1 "札幌市", :sityouson_name2 "", :sityouson_name3 "", :yomigana "さっぽろし"}]
+sqlkorma-study.core> (k/delete ken_sityouson_table)
+{:last_insert_rowid() 1}
+sqlkorma-study.core> (k/select ken_sityouson_table)
+[]
+sqlkorma-study.core> (defn insert-all-sityouson-data-to-db
+  "統計局ホームページ-統計に用いる標準地域コードのデータを、DBに突っ込む。"
+  []
+  (doseq [rec (read-ken-sityouson-as-vector)]
+    (k/insert ken_sityouson_table (transform-for-insert rec))))
+
+#'sqlkorma-study.core/insert-all-sityouson-data-to-db
+sqlkorma-study.core> (insert-all-sityouson-data-to-db)
+ArityException Wrong number of args (2) passed to: core$transform-for-insert  clojure.lang.AFn.throwArity (AFn.java:437)
+sqlkorma-study.core> (k/select ken_sityouson_table)
+[]
+sqlkorma-study.core> (def all (read-ken-sityouson-as-vector))
+#'sqlkorma-study.core/all
+sqlkorma-study.core> (count all)
+2297
+sqlkorma-study.core> (def rec (first all))
+#'sqlkorma-study.core/rec
+sqlkorma-study.core> rec
+"1,0,1000,北海道,,,,ほっかいどう"
+sqlkorma-study.core> (k/insert ken_sityouson_table (transform-for-insert rec))
+ArityException Wrong number of args (2) passed to: core$transform-for-insert  clojure.lang.AFn.throwArity (AFn.java:437)
+sqlkorma-study.core> (transform-for-insert rec)
+{:yomigana \0, :sityouson_name3 \0, :sityouson_name2 \0, :sityouson_name1 \1, :ken_name \,, :tiiki_code \0, :sityouson_code \,, :ken_code \1}
+sqlkorma-study.core> (defn insert-all-sityouson-data-to-db
+  "統計局ホームページ-統計に用いる標準地域コードのデータを、DBに突っ込む。"
+  []
+  (doseq [rec (read-ken-sityouson-as-vector)]
+    (k/insert ken_sityouson_table (k/values (transform-for-insert rec)))))
+
+#'sqlkorma-study.core/insert-all-sityouson-data-to-db
+sqlkorma-study.core> (insert-all-sityouson-data-to-db)
+nil
+sqlkorma-study.core> (k/select ken_sityouson_table
+          (aggregate (count :*)))
+CompilerException java.lang.RuntimeException: Unable to resolve symbol: aggregate in this context, compiling:(NO_SOURCE_PATH:2) 
+sqlkorma-study.core> (k/select ken_sityouson_table
+          (k/aggregate (count :*)))
+CompilerException clojure.lang.ArityException: Wrong number of args (2) passed to: core$aggregate, compiling:(NO_SOURCE_PATH:2) 
+sqlkorma-study.core> (k/select ken_sityouson_table
+          (k/aggregate (k/count :*)))
+CompilerException clojure.lang.ArityException: Wrong number of args (2) passed to: core$aggregate, compiling:(NO_SOURCE_PATH:2) 
+sqlkorma-study.core> (first (k/select ken_sityouson_table))
+{:ken_code 1, :sityouson_code ",", :tiiki_code 0, :ken_name ",", :sityouson_name1 "1", :sityouson_name2 "0", :sityouson_name3 "0", :yomigana "0"}
+sqlkorma-study.core> (second (k/select ken_sityouson_table))
+{:ken_code 1, :sityouson_code ",", :tiiki_code 1, :ken_name "0", :sityouson_name1 "0", :sityouson_name2 ",", :sityouson_name3 "1", :yomigana "1"}
+sqlkorma-study.core> (def testdata (->> "1,100,1100,北海道,札幌市,,,さっぽろし"
+                   (re-seq #"([^,]*),?")
+                   (map second)
+                   (drop-last)))
+
+#'sqlkorma-study.core/testdata
+sqlkorma-study.core> testdata
+("1" "100" "1100" "北海道" "札幌市" "" "" "さっぽろし")
+sqlkorma-study.core> (transform-for-insert testdata)
+{:yomigana "さっぽろし", :sityouson_name3 "", :sityouson_name2 "", :sityouson_name1 "札幌市", :ken_name "北海道", :tiiki_code "1100", :sityouson_code "100", :ken_code "1"}
+sqlkorma-study.core> (k/insert ken_sityouson_table (k/values (transform-for-insert testdata)))
+{:last_insert_rowid() 1}
+sqlkorma-study.core> (k/select ken_sityouson_table)
+[{:ken_code 1, :sityouson_code 100, :tiiki_code 1100, :ken_name "北海道", :sityouson_name1 "札幌市", :sityouson_name2 "", :sityouson_name3 "", :yomigana "さっぽろし"}]
+sqlkorma-study.core> (k/delete ken_sityouson_table)
+{:last_insert_rowid() 1}
+sqlkorma-study.core> (k/select ken_sityouson_table)
+[]
+sqlkorma-study.core> (def all (read-ken-sityouson-as-vector))
+#'sqlkorma-study.core/all
+sqlkorma-study.core> (first all)
+"1,0,1000,北海道,,,,ほっかいどう"
+sqlkorma-study.core> (transform-for-insert (first all))
+{:yomigana \0, :sityouson_name3 \0, :sityouson_name2 \0, :sityouson_name1 \1, :ken_name \,, :tiiki_code \0, :sityouson_code \,, :ken_code \1}
+sqlkorma-study.core> (count all)
+2297
+sqlkorma-study.core> (first all)
+"1,0,1000,北海道,,,,ほっかいどう"
+sqlkorma-study.core> (defn split-with-comma
+  "１行の文字列をカンマで区切る"
+  [line]
+  (->> line
+       (re-seq #"([^,]*),?")
+       (map second)
+       (drop-last)))
+
+#'sqlkorma-study.core/split-with-comma
+sqlkorma-study.core> (split-with-comma "1,100,1100,北海道,札幌市,,,さっぽろし")
+("1" "100" "1100" "北海道" "札幌市" "" "" "さっぽろし")
+sqlkorma-study.core> (first all)
+"1,0,1000,北海道,,,,ほっかいどう"
+sqlkorma-study.core> (split-with-comma (first all))
+("1" "0" "1000" "北海道" "" "" "" "ほっかいどう")
+sqlkorma-study.core> (transform-for-input (split-with-comma (first all)))
+CompilerException java.lang.RuntimeException: Unable to resolve symbol: transform-for-input in this context, compiling:(NO_SOURCE_PATH:1) 
+sqlkorma-study.core> (transform-for-insert (split-with-comma (first all)))
+{:yomigana "ほっかいどう", :sityouson_name3 "", :sityouson_name2 "", :sityouson_name1 "", :ken_name "北海道", :tiiki_code "1000", :sityouson_code "0", :ken_code "1"}
+sqlkorma-study.core> (k/insert ken_sityouson_table (k/values (transform-for-insert (split-with-comma "1,100,1100,北海道,札幌市,,,さっぽろし"))))
+{:last_insert_rowid() 1}
+sqlkorma-study.core> (k/select ken_sityouson_table)
+[{:ken_code 1, :sityouson_code 100, :tiiki_code 1100, :ken_name "北海道", :sityouson_name1 "札幌市", :sityouson_name2 "", :sityouson_name3 "", :yomigana "さっぽろし"}]
+sqlkorma-study.core> (k/delete ken_sityouson_table)
+{:last_insert_rowid() 1}
+sqlkorma-study.core> (k/select ken_sityouson_table)
+[]
+sqlkorma-study.core> (def all (read-ken-sityouson-as-vector))
+#'sqlkorma-study.core/all
+sqlkorma-study.core> (first all)
+"1,0,1000,北海道,,,,ほっかいどう"
+sqlkorma-study.core> (defn insert-all-sityouson-data-to-db
+  "統計局ホームページ-統計に用いる標準地域コードのデータを、DBに突っ込む。"
+  []
+  (doseq [line (read-ken-sityouson-as-vector)]
+    (->> line
+         (split-with-comma)
+         (transform-for-insert)
+         (k/values)
+         (k/insert ken_sityouson_table))))
+#'sqlkorma-study.core/insert-all-sityouson-data-to-db
+sqlkorma-study.core> (insert-all-sityouson-data-to-db)
+ArityException Wrong number of args (2) passed to: core$insert-STAR-  clojure.lang.AFn.throwArity (AFn.java:437)
+sqlkorma-study.core> (defn insert-all-sityouson-data-to-db
+  "統計局ホームページ-統計に用いる標準地域コードのデータを、DBに突っ込む。"
+  []
+  (doseq [line (read-ken-sityouson-as-vector)]
+    (let [arg (transform-for-insert (split-with-comma line))]
+      (k/insert ken_sityouson_table (k/values arg)))))
+
+#'sqlkorma-study.core/insert-all-sityouson-data-to-db
+sqlkorma-study.core> (insert-all-sityouson-data-to-db)
+nil
+sqlkorma-study.core> (k/select ken_sityouson_table (k/aggregate (k/count :*)))
+CompilerException clojure.lang.ArityException: Wrong number of args (2) passed to: core$aggregate, compiling:(NO_SOURCE_PATH:1) 
+sqlkorma-study.core> (def all (k/select ken_sityouson_table))
+#'sqlkorma-study.core/all
+sqlkorma-study.core> (first all)
+{:ken_code 1, :sityouson_code 0, :tiiki_code 1000, :ken_name "北海道", :sityouson_name1 "", :sityouson_name2 "", :sityouson_name3 "", :yomigana "ほっかいどう"}
+sqlkorma-study.core> (k/select ken_sityouson_table (k/where {:tiiki_code 1000}))
+[{:ken_code 1, :sityouson_code 0, :tiiki_code 1000, :ken_name "北海道", :sityouson_name1 "", :sityouson_name2 "", :sityouson_name3 "", :yomigana "ほっかいどう"}]
+sqlkorma-study.core> (k/select ken_sityouson_table (k/where {:ken_code 1}))
+;;; output cleared
+sqlkorma-study.core> (doc def)
+-------------------------
+def
+  (def symbol doc-string? init?)
+Special Form
+  Creates and interns a global var with the name
+  of symbol in the current namespace (*ns*) or locates such a var if
+  it already exists.  If init is supplied, it is evaluated, and the
+  root binding of the var is set to the resulting value.  If init is
+  not supplied, the root binding of the var is unaffected.
+
+  Please see http://clojure.org/special_forms#def
+nil
+sqlkorma-study.core> (doc defdb)
+nil
+sqlkorma-study.core> (doc db/defdb)
+-------------------------
+korma.db/defdb
+([db-name spec])
+Macro
+  Define a database specification. The last evaluated defdb will be used by default
+  for all queries where no database is specified by the entity.
+nil
+sqlkorma-study.core> (def ken-sityouson-csv-url "接続先DB" "http://www.stat.go.jp/index/seido/csv/9-5.csv")
+#'sqlkorma-study.core/ken-sityouson-csv-url
+sqlkorma-study.core> ken-sityouson-csv-url
+"http://www.stat.go.jp/index/seido/csv/9-5.csv"
+sqlkorma-study.core> (meta #'ken-sityouson-csv-url)
+{:ns #<Namespace sqlkorma-study.core>, :name ken-sityouson-csv-url, :doc "接続先DB", :line 1, :file "NO_SOURCE_PATH"}
+sqlkorma-study.core> (def ken-sityouson-csv-url
+  "統計局ホームページ-統計に用いる標準地域コードの取得元URL"
+  "http://www.stat.go.jp/index/seido/csv/9-5.csv")
+#'sqlkorma-study.core/ken-sityouson-csv-url
+sqlkorma-study.core> ken-sityouson-csv-url
+"http://www.stat.go.jp/index/seido/csv/9-5.csv"
+sqlkorma-study.core> (meta #'ken-sityouson-csv-url)
+{:ns #<Namespace sqlkorma-study.core>, :name ken-sityouson-csv-url, :doc "統計局ホームページ-統計に用いる標準地域コードの取得元URL", :line 1, :file "NO_SOURCE_PATH"}
+sqlkorma-study.core> (first all)
+{:ken_code 1, :sityouson_code 0, :tiiki_code 1000, :ken_name "北海道", :sityouson_name1 "", :sityouson_name2 "", :sityouson_name3 "", :yomigana "ほっかいどう"}
+sqlkorma-study.core> (System/exit 0)
