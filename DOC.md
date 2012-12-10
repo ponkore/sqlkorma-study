@@ -185,72 +185,50 @@ $ lein deps
 あとは、テーブル単体でデータが欲しければ、
 
 ```clojrue
-(clojure.pprint/pprint (k/select users))
-=> [{:id 0, :first_name "Taro", :last_name "Hoge", :email_id 0}
-    {:id 1, :first_name "Taro", :last_name "Hoge", :email_id nil}
-    {:id 2, :first_name "じろう", :last_name "Hoge", :email_id nil}]
+(k/select users)
+=> [{:id 1, :first_name "Taro", :last_name "Hoge"} {:id 2, :first_name "じろう", :last_name "Hoge"}]
 ```
 
 とやれば得られますし、user に紐付く email の情報もあわせて取得したい場合(join して取ってきたい場合)は、
 
 ```clojure
 (clojure.pprint/pprint (k/select users (k/with email)))
-;=> [{:id 0,
+;=> [{:id 1,
   :first_name "Taro",
   :last_name "Hoge",
-  :email_id 0,
-  :id_2 0,
-  :address "example@hoge.com",
-  :users_id 0}
- {:id 0,
-  :first_name "Taro",
-  :last_name "Hoge",
-  :email_id 0,
-  :id_2 1,
-  :address "example2@fuga.com",
-  :users_id 0}
- {:id 0,
-  :first_name "Taro",
-  :last_name "Hoge",
-  :email_id 0,
-  :id_2 2,
-  :address "example3@piyo.com",
-  :users_id 0}
- {:id 1,
-  :first_name "Taro",
-  :last_name "Hoge",
-  :email_id nil,
   :id_2 3,
   :address "example@hoge.com",
   :users_id 1}
  {:id 1,
   :first_name "Taro",
   :last_name "Hoge",
-  :email_id nil,
   :id_2 4,
   :address "example2@fuga.com",
   :users_id 1}
  {:id 1,
   :first_name "Taro",
   :last_name "Hoge",
-  :email_id nil,
   :id_2 5,
   :address "example2@fuga.com",
   :users_id 1}
  {:id 2,
   :first_name "じろう",
   :last_name "Hoge",
-  :email_id nil,
   :id_2 nil,
   :address nil,
   :users_id nil}]
+nil
 ```
+のようにやれば取得できます。
 
-のようにやれば取得できます。どんな SQL が発行されているかは、`korma.core/sql-only` を使います。
+どんな SQL が発行されているかは、`korma.core/sql-only` を使います。
 ```clojure
 (k/sql-only (k/select users (k/with email)))
 ;=> "SELECT \"users\".*, \"email\".* FROM \"users\" LEFT JOIN \"email\" ON \"users\".\"id\" = \"email\".\"users_id\""
 ```
+
+実は、注目すべき点は、korma の select が返す「行」は、clojure の hash-map だということです。この性質により、うまくプログラムの構造を作れば、DB アクセス層を完全に独立させ、ビジネスロジック層を korma とは独立した状態にすることができます。まあうまくやれば、の話ですが。
+
 
 ちょっとだけ応用編
 ---------------
