@@ -169,20 +169,18 @@ $ lein deps
   (k/has-one email))
 ```
 
-上記テーブルでは、users:email = 1:n の関係になるように定義しました。
-
 次にデータを入れていきます。データは、`korma.core/insert` というものを使います。値は、`korma.core/values` という関数を経由する形で hash-map で渡してあげます。
 
 ```clojure
 (k/insert users (k/values {:id 1 :first_name "Taro" :last_name "Hoge"}))
 (k/insert users (k/values {:id 2 :first_name "じろう" :last_name "Hoge"}))
 
-(k/insert email (k/values {:id 0 :address "example@hoge.com" :users_id 0}))
-(k/insert email (k/values {:id 1 :address "example2@fuga.com" :users_id 0}))
+(k/insert email (k/values {:id 0 :address "example-taro@hoge.com" :users_id 1}))
+(k/insert email (k/values {:id 1 :address "example2-taro@fuga.com" :users_id 1}))
 
-(k/insert email (k/values {:id 3 :address "example@hoge.com" :users_id 1}))
-(k/insert email (k/values {:id 4 :address "example2@fuga.com" :users_id 1}))
-(k/insert email (k/values {:id 5 :address "example2@fuga.com" :users_id 1}))
+(k/insert email (k/values {:id 3 :address "example-jiro@hoge.com" :users_id 2}))
+(k/insert email (k/values {:id 4 :address "example-jiro2@fuga.com" :users_id 2}))
+(k/insert email (k/values {:id 5 :address "example2-jiro@fuga.com" :users_id 2}))
 ```
 
 あとは、テーブル単体でデータが欲しければ、
@@ -199,27 +197,33 @@ $ lein deps
 ;=> [{:id 1,
   :first_name "Taro",
   :last_name "Hoge",
-  :id_2 3,
-  :address "example@hoge.com",
+  :id_2 0,
+  :address "example-taro@hoge.com",
   :users_id 1}
  {:id 1,
   :first_name "Taro",
   :last_name "Hoge",
-  :id_2 4,
-  :address "example2@fuga.com",
-  :users_id 1}
- {:id 1,
-  :first_name "Taro",
-  :last_name "Hoge",
-  :id_2 5,
-  :address "example2@fuga.com",
+  :id_2 1,
+  :address "example2-taro@fuga.com",
   :users_id 1}
  {:id 2,
   :first_name "じろう",
   :last_name "Hoge",
-  :id_2 nil,
-  :address nil,
-  :users_id nil}]
+  :id_2 3,
+  :address "example-jiro@hoge.com",
+  :users_id 2}
+ {:id 2,
+  :first_name "じろう",
+  :last_name "Hoge",
+  :id_2 4,
+  :address "example-jiro2@fuga.com",
+  :users_id 2}
+ {:id 2,
+  :first_name "じろう",
+  :last_name "Hoge",
+  :id_2 5,
+  :address "example2-jiro@fuga.com",
+  :users_id 2}]
 nil
 ```
 のようにやれば取得できます。
